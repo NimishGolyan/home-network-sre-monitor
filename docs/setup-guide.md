@@ -201,6 +201,14 @@ After logging in, add Prometheus as a Grafana data source:
 http://prometheus:9090
 ```
 
+Milestone 2 also provisions this automatically:
+
+- Data source: `Prometheus`
+- Dashboard folder: `Home Network SRE`
+- Dashboard: `Home Network SRE Overview`
+
+If Grafana looks empty, go to `Dashboards` and open the `Home Network SRE` folder.
+
 ## Current Probe Targets
 
 Prometheus currently runs Blackbox Exporter checks for:
