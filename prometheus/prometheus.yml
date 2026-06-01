@@ -18,7 +18,7 @@ scrape_configs:
       - targets:
           - "node-exporter:9100"
         labels:
-          device: "raspberry-pi"
+          host: "raspberry-pi"
           role: "monitoring-host"
     relabel_configs:
       - target_label: instance

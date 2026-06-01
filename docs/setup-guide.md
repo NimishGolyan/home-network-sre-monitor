@@ -170,7 +170,7 @@ node_load1
 
 The Prometheus labels are intentionally beginner-readable:
 
-- Node Exporter appears as `raspberry-pi`.
+- Node Exporter appears as `raspberry-pi`, with `host="raspberry-pi"`.
 - Blackbox Exporter appears as `blackbox-exporter`.
 - Deco gateway probe appears as `deco-gateway`.
 - DNS probes appear as `cloudflare-dns`, `google-dns`, `cloudflare-dns-lookup`, and `google-dns-lookup`.
