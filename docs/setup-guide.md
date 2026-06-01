@@ -218,8 +218,12 @@ Prometheus currently runs Blackbox Exporter checks for:
 - Google DNS IP: `8.8.8.8`
 - HTTPS check: `https://www.google.com`
 - DNS lookup check: `google.com`
+- Fake ICMP test target: `192.168.68.254`
+- Fake HTTPS test target: `https://fake-home-network-test.invalid`
 
 Edit `prometheus/prometheus.yml` if your Deco gateway is different.
+
+The fake targets are intentionally expected to fail. They are included so you can see how failed probes look in Prometheus and Grafana without unplugging the router or breaking the real network.
 
 ## Run The Outage Classifier
 

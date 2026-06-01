@@ -325,6 +325,154 @@
       },
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "text": "FAIL"
+                },
+                "1": {
+                  "color": "green",
+                  "text": "OK"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 5
+      },
+      "id": 9,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "probe_success{instance=\"fake-icmp-target\"}",
+          "legendFormat": "Fake ICMP",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Test Failure: ICMP",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "text": "FAIL"
+                },
+                "1": {
+                  "color": "green",
+                  "text": "OK"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 5
+      },
+      "id": 10,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "probe_success{instance=\"fake-https-target\"}",
+          "legendFormat": "Fake HTTPS",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Test Failure: HTTPS",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
           "custom": {
             "drawStyle": "line",
             "fillOpacity": 10,
@@ -342,7 +490,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 5
+        "y": 10
       },
       "id": 5,
       "options": {
@@ -363,7 +511,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "probe_duration_seconds",
+          "expr": "probe_duration_seconds{target_type!=\"test\"}",
           "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
@@ -395,7 +543,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 5
+        "y": 10
       },
       "id": 6,
       "options": {
@@ -465,7 +613,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 13
+        "y": 18
       },
       "id": 7,
       "options": {
@@ -525,7 +673,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 13
+        "y": 18
       },
       "id": 8,
       "options": {

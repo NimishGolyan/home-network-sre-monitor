@@ -42,12 +42,18 @@ DNS lookup checks.
 probe_success{target_type="dns-lookup"}
 ```
 
+Intentional fake test failures.
+
+```promql
+probe_success{target_type="test"}
+```
+
 ## Probe Latency
 
 Shows probe duration in seconds.
 
 ```promql
-probe_duration_seconds
+probe_duration_seconds{target_type!="test"}
 ```
 
 Deco gateway latency.

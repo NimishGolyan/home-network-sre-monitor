@@ -56,6 +56,13 @@ scrape_configs:
         labels:
           target_name: "google-dns"
           target_type: "dns"
+      # Fake target for testing dashboard failure states.
+      # This IP should not exist on the home network.
+      - targets:
+          - "192.168.68.254"
+        labels:
+          target_name: "fake-icmp-target"
+          target_type: "test"
     relabel_configs:
       - source_labels:
           - __address__
@@ -82,6 +89,13 @@ scrape_configs:
         labels:
           target_name: "google-https"
           target_type: "external-website"
+      # Fake target for testing dashboard failure states.
+      # The .invalid TLD is reserved and should not resolve.
+      - targets:
+          - "https://fake-home-network-test.invalid"
+        labels:
+          target_name: "fake-https-target"
+          target_type: "test"
     relabel_configs:
       - source_labels:
           - __address__
