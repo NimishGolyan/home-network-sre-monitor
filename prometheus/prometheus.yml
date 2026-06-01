@@ -3,12 +3,83 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
+  # Prometheus scraping itself.
   - job_name: "prometheus"
     static_configs:
       - targets:
           - "prometheus:9090"
 
-  # TODO: Add Blackbox Exporter probe jobs in a later milestone.
-  # Example targets should use local placeholders such as 192.168.68.1.
-  # Do not hardcode your public IP address.
+  # Raspberry Pi host metrics from Node Exporter.
+  - job_name: "node-exporter"
+    static_configs:
+      - targets:
+          - "node-exporter:9100"
 
+  # Blackbox Exporter metrics about the exporter itself.
+  - job_name: "blackbox-exporter"
+    static_configs:
+      - targets:
+          - "blackbox:9115"
+
+  # ICMP reachability checks.
+  # Edit 192.168.68.1 if your TP-Link Deco gateway uses a different local IP.
+  - job_name: "blackbox-icmp"
+    metrics_path: /probe
+    params:
+      module:
+        - icmp
+    static_configs:
+      - targets:
+          - "192.168.68.1" # Deco gateway placeholder
+          - "1.1.1.1"     # Cloudflare DNS
+          - "8.8.8.8"     # Google DNS
+    relabel_configs:
+      - source_labels:
+          - __address__
+        target_label: __param_target
+      - source_labels:
+          - __param_target
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  # HTTPS availability check.
+  # Add or replace targets as needed; do not put secrets in URLs.
+  - job_name: "blackbox-https"
+    metrics_path: /probe
+    params:
+      module:
+        - http_2xx
+    static_configs:
+      - targets:
+          - "https://www.google.com"
+    relabel_configs:
+      - source_labels:
+          - __address__
+        target_label: __param_target
+      - source_labels:
+          - __param_target
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  # DNS lookup check for google.com using public DNS resolvers.
+  # The query name is configured in blackbox/blackbox.yml.
+  - job_name: "blackbox-dns-google-com"
+    metrics_path: /probe
+    params:
+      module:
+        - dns_google_com
+    static_configs:
+      - targets:
+          - "1.1.1.1" # Cloudflare DNS
+          - "8.8.8.8" # Google DNS
+    relabel_configs:
+      - source_labels:
+          - __address__
+        target_label: __param_target
+      - source_labels:
+          - __param_target
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115

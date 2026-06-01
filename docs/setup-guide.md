@@ -1,17 +1,17 @@
 # Setup Guide
 
-This guide is intentionally beginner-friendly. Milestone 1 does not require running the full stack yet.
+This guide is intentionally beginner-friendly. Milestone 2 runs the first basic monitoring stack on a Raspberry Pi.
 
 ## Prerequisites
 
-Eventually you will need:
+You will need:
 
 - Raspberry Pi connected to your home network.
 - Docker installed on the Raspberry Pi.
 - Docker Compose available.
 - Git installed.
 
-For Milestone 1, you only need this repository.
+The target operating system is Raspberry Pi OS or another Debian-based Linux distribution.
 
 ## Configuration
 
@@ -53,15 +53,157 @@ Get-NetRoute -AddressFamily IPv4
 Get-DnsClientDohServerAddress
 ```
 
-## First Docker Command
+## Install Git On Raspberry Pi
 
-In a later milestone, the expected command will be:
+On the Raspberry Pi:
+
+```sh
+sudo apt update
+sudo apt install -y git curl ca-certificates
+```
+
+## Install Docker On Raspberry Pi
+
+Use Docker's official convenience script for a beginner-friendly first setup:
+
+```sh
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker "$USER"
+```
+
+Log out and log back in so your user can run Docker commands without `sudo`.
+
+Check Docker:
+
+```sh
+docker --version
+docker compose version
+```
+
+## Clone This Repository
+
+Replace the URL with your GitHub repository URL after you push it:
+
+```sh
+git clone https://github.com/YOUR_USERNAME/home-network-sre-monitor.git
+cd home-network-sre-monitor
+```
+
+If you copy the project to the Raspberry Pi manually instead of using GitHub, just `cd` into the project folder.
+
+## Create Local Environment File
+
+```sh
+cp .env.example .env
+nano .env
+```
+
+Review these values:
+
+- `ROUTER_IP`
+- `LOCAL_SUBNET`
+- `PRIMARY_DNS`
+- `SECONDARY_DNS`
+- `GRAFANA_ADMIN_USER`
+- `GRAFANA_ADMIN_PASSWORD`
+
+Important: the current Prometheus probe targets are edited in `prometheus/prometheus.yml`. The `.env` file documents local values for scripts and future milestones.
+
+## Run The Monitoring Stack
+
+From the repository folder:
 
 ```sh
 docker compose up -d
 ```
 
-For now, the Compose file is only a placeholder so you can review the project shape.
+This starts:
+
+- Prometheus on port `9090`.
+- Grafana on port `3000`.
+- Blackbox Exporter on port `9115`.
+- Node Exporter on port `9100`.
+
+## Check Container Status
+
+```sh
+docker compose ps
+```
+
+You can also view logs:
+
+```sh
+docker compose logs prometheus
+docker compose logs blackbox
+docker compose logs node-exporter
+docker compose logs grafana
+```
+
+## Access Prometheus
+
+From a browser on the same home network:
+
+```text
+http://RASPBERRY_PI_IP:9090
+```
+
+On the Raspberry Pi itself:
+
+```text
+http://localhost:9090
+```
+
+Useful Prometheus pages:
+
+- `Status` > `Targets`
+- `Graph`
+
+Example queries:
+
+```promql
+up
+probe_success
+probe_duration_seconds
+node_load1
+```
+
+## Access Grafana
+
+From a browser on the same home network:
+
+```text
+http://RASPBERRY_PI_IP:3000
+```
+
+On the Raspberry Pi itself:
+
+```text
+http://localhost:3000
+```
+
+Default local test login:
+
+- Username: `admin`
+- Password: `admin`, unless you changed `GRAFANA_ADMIN_PASSWORD` in `.env`
+
+After logging in, add Prometheus as a Grafana data source:
+
+```text
+http://prometheus:9090
+```
+
+## Current Probe Targets
+
+Prometheus currently runs Blackbox Exporter checks for:
+
+- Deco gateway placeholder: `192.168.68.1`
+- Cloudflare DNS IP: `1.1.1.1`
+- Google DNS IP: `8.8.8.8`
+- HTTPS check: `https://www.google.com`
+- DNS lookup check: `google.com`
+
+Edit `prometheus/prometheus.yml` if your Deco gateway is different.
 
 ## Beginner Notes
 
@@ -69,3 +211,4 @@ For now, the Compose file is only a placeholder so you can review the project sh
 - Blackbox Exporter tests whether targets are reachable.
 - Grafana turns metrics into dashboards.
 - Alerts should include local options because cloud notifications may fail during an ISP outage.
+- Milestone 2 does not configure Telegram, email, cloud alerts, or Home Assistant.

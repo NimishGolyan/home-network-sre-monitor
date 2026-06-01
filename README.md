@@ -35,9 +35,9 @@ The Raspberry Pi will eventually run:
 - A small outage classifier script.
 - Local-first alerting such as a buzzer, LED, local dashboard, or optional Google Home announcement.
 
-## Milestone 1 Status
+## Milestone Status
 
-Created:
+Milestone 1 created:
 
 - Initial documentation.
 - Placeholder Docker Compose file.
@@ -45,7 +45,14 @@ Created:
 - Placeholder outage classification and health-check scripts.
 - Screenshot folder for future dashboard images.
 
-No services are production-ready yet.
+Milestone 2 adds the first runnable monitoring stack:
+
+- Prometheus.
+- Blackbox Exporter.
+- Node Exporter.
+- Grafana.
+
+The stack is still basic and does not include external alerting yet.
 
 ## Next Milestones
 
@@ -77,4 +84,3 @@ No services are production-ready yet.
 ├── docker-compose.yml
 └── README.md
 ```
-

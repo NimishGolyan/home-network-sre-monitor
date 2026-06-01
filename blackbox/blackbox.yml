@@ -10,6 +10,7 @@ modules:
     timeout: 5s
     http:
       preferred_ip_protocol: ip4
+      method: GET
       valid_http_versions:
         - HTTP/1.1
         - HTTP/2.0
@@ -18,6 +19,15 @@ modules:
     prober: tcp
     timeout: 5s
 
-# TODO: Confirm which probes work reliably on Raspberry Pi Docker.
-# ICMP probes may need additional container permissions in a later milestone.
+  dns_google_com:
+    prober: dns
+    timeout: 5s
+    dns:
+      preferred_ip_protocol: ip4
+      query_name: google.com
+      query_type: A
+      valid_rcodes:
+        - NOERROR
 
+# Edit or add modules here as the project grows.
+# ICMP probes require NET_RAW capability in docker-compose.yml.

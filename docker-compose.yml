@@ -7,9 +7,12 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
-    # TODO: Add persistent Prometheus storage in a later milestone.
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
 
   blackbox:
     image: prom/blackbox-exporter:latest
@@ -21,6 +24,35 @@ services:
       - ./blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
     command:
       - "--config.file=/etc/blackbox_exporter/config.yml"
+    # Required for ICMP/ping probes from inside the container.
+    cap_add:
+      - NET_RAW
 
-  # TODO: Add Grafana after the first Prometheus/Blackbox checks are working.
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: home-network-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    command:
+      - "--path.rootfs=/host"
+    volumes:
+      - /:/host:ro,rslave
+    # Node Exporter reads Raspberry Pi host metrics through the mounted root filesystem.
 
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: home-network-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Change these after first login. Do not commit real passwords.
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  prometheus_data:
+  grafana_data:
