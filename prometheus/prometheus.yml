@@ -8,18 +8,30 @@ scrape_configs:
     static_configs:
       - targets:
           - "prometheus:9090"
+    relabel_configs:
+      - target_label: instance
+        replacement: prometheus
 
   # Raspberry Pi host metrics from Node Exporter.
   - job_name: "node-exporter"
     static_configs:
       - targets:
           - "node-exporter:9100"
+        labels:
+          device: "raspberry-pi"
+          role: "monitoring-host"
+    relabel_configs:
+      - target_label: instance
+        replacement: raspberry-pi
 
   # Blackbox Exporter metrics about the exporter itself.
   - job_name: "blackbox-exporter"
     static_configs:
       - targets:
           - "blackbox:9115"
+    relabel_configs:
+      - target_label: instance
+        replacement: blackbox-exporter
 
   # ICMP reachability checks.
   # Edit 192.168.68.1 if your TP-Link Deco gateway uses a different local IP.
@@ -30,15 +42,29 @@ scrape_configs:
         - icmp
     static_configs:
       - targets:
-          - "192.168.68.1" # Deco gateway placeholder
-          - "1.1.1.1"     # Cloudflare DNS
-          - "8.8.8.8"     # Google DNS
+          - "192.168.68.1"
+        labels:
+          target_name: "deco-gateway"
+          target_type: "router"
+      - targets:
+          - "1.1.1.1"
+        labels:
+          target_name: "cloudflare-dns"
+          target_type: "dns"
+      - targets:
+          - "8.8.8.8"
+        labels:
+          target_name: "google-dns"
+          target_type: "dns"
     relabel_configs:
       - source_labels:
           - __address__
         target_label: __param_target
       - source_labels:
           - __param_target
+        target_label: probed_target
+      - source_labels:
+          - target_name
         target_label: instance
       - target_label: __address__
         replacement: blackbox:9115
@@ -53,12 +79,18 @@ scrape_configs:
     static_configs:
       - targets:
           - "https://www.google.com"
+        labels:
+          target_name: "google-https"
+          target_type: "external-website"
     relabel_configs:
       - source_labels:
           - __address__
         target_label: __param_target
       - source_labels:
           - __param_target
+        target_label: probed_target
+      - source_labels:
+          - target_name
         target_label: instance
       - target_label: __address__
         replacement: blackbox:9115
@@ -72,14 +104,26 @@ scrape_configs:
         - dns_google_com
     static_configs:
       - targets:
-          - "1.1.1.1" # Cloudflare DNS
-          - "8.8.8.8" # Google DNS
+          - "1.1.1.1"
+        labels:
+          target_name: "cloudflare-dns-lookup"
+          target_type: "dns-lookup"
+          query_name: "google.com"
+      - targets:
+          - "8.8.8.8"
+        labels:
+          target_name: "google-dns-lookup"
+          target_type: "dns-lookup"
+          query_name: "google.com"
     relabel_configs:
       - source_labels:
           - __address__
         target_label: __param_target
       - source_labels:
           - __param_target
+        target_label: probed_target
+      - source_labels:
+          - target_name
         target_label: instance
       - target_label: __address__
         replacement: blackbox:9115

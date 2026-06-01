@@ -168,6 +168,14 @@ probe_duration_seconds
 node_load1
 ```
 
+The Prometheus labels are intentionally beginner-readable:
+
+- Node Exporter appears as `raspberry-pi`.
+- Blackbox Exporter appears as `blackbox-exporter`.
+- Deco gateway probe appears as `deco-gateway`.
+- DNS probes appear as `cloudflare-dns`, `google-dns`, `cloudflare-dns-lookup`, and `google-dns-lookup`.
+- The original probe target is preserved in the `probed_target` label.
+
 ## Access Grafana
 
 From a browser on the same home network:
