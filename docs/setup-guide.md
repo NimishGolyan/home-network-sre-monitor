@@ -221,6 +221,43 @@ Prometheus currently runs Blackbox Exporter checks for:
 
 Edit `prometheus/prometheus.yml` if your Deco gateway is different.
 
+## Run The Outage Classifier
+
+Milestone 3 adds a local outage classification script. It uses only the Python standard library, so no `pip install` step is required.
+
+Run it on the Raspberry Pi from the repository folder:
+
+```sh
+python3 scripts/classify_outage.py
+```
+
+Run it with explicit values:
+
+```sh
+python3 scripts/classify_outage.py \
+  --gateway 192.168.68.1 \
+  --public-target 1.1.1.1 \
+  --public-target 8.8.8.8 \
+  --dns-domain google.com \
+  --https-url https://www.google.com \
+  --latency-threshold-ms 150
+```
+
+The script exits with:
+
+- `0` when the classification is `OK`.
+- `1` when the network is degraded or failed.
+
+The latency rule uses successful ping measurements from the gateway and public IP targets.
+
+Useful test commands:
+
+```sh
+python3 scripts/classify_outage.py --latency-threshold-ms 1
+python3 scripts/classify_outage.py --gateway 192.168.68.254
+python3 scripts/classify_outage.py --dns-domain definitely-not-a-real-domain.invalid
+```
+
 ## Beginner Notes
 
 - Prometheus stores measurements over time.

@@ -54,6 +54,61 @@ Milestone 2 adds the first runnable monitoring stack:
 
 The stack is still basic and does not include external alerting yet.
 
+Milestone 3 adds:
+
+- A beginner-friendly outage classifier script.
+- Human-readable status output.
+- JSON output for future automation.
+- Exit code `0` for `OK` and `1` for degraded/failure states.
+
+## Outage Classifier
+
+Run on the Raspberry Pi:
+
+```sh
+python3 scripts/classify_outage.py
+```
+
+Example healthy output:
+
+```text
+Status: OK
+All checks passed. Home network looks healthy.
+
+Checks:
+- Gateway ping: OK, latency=5.1 ms
+- Public IP ping 1.1.1.1: OK, latency=9.2 ms
+- Public IP ping 8.8.8.8: OK, latency=14.4 ms
+- DNS lookup: OK, latency=35.7 ms
+- HTTPS request: OK, latency=220.5 ms
+
+JSON summary:
+{
+  "classification": "OK",
+  "...": "..."
+}
+```
+
+Example degraded output:
+
+```text
+Status: DNS_FAILURE
+Public IP checks work, but DNS lookup failed. This looks like a DNS issue.
+
+Checks:
+- Gateway ping: OK, latency=5.0 ms
+- Public IP ping 1.1.1.1: OK, latency=9.0 ms
+- Public IP ping 8.8.8.8: OK, latency=14.0 ms
+- DNS lookup: FAIL, error=[Errno -2] Name or service not known
+- HTTPS request: FAIL, error=<urlopen error ...>
+
+JSON summary:
+{
+  "classification": "DNS_FAILURE",
+  "...": "..."
+}
+```
+
 ## Next Milestones
 
 1. Run Prometheus and Blackbox Exporter locally.
