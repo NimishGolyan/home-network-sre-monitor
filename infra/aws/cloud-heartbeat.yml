@@ -1,0 +1,292 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Cloud dead-man heartbeat alerting for home-network-sre-monitor.
+
+Parameters:
+  AlertEmail:
+    Type: String
+    Description: Email address that should receive heartbeat missing/recovery alerts.
+  HeartbeatToken:
+    Type: String
+    NoEcho: true
+    MinLength: 16
+    Description: Shared bearer token used by the Raspberry Pi heartbeat sender.
+  SiteId:
+    Type: String
+    Default: home
+    Description: Logical name for this monitored site.
+  StaleAfterSeconds:
+    Type: Number
+    Default: 180
+    MinValue: 60
+    Description: Alert when no heartbeat has been seen for this many seconds.
+
+Resources:
+  HeartbeatTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: site_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: site_id
+          KeyType: HASH
+
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: home-network-sre-monitor alerts
+
+  AlertEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+      TopicArn: !Ref AlertTopic
+
+  HeartbeatLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: heartbeat-table-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Scan
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt HeartbeatTable.Arn
+        - PolicyName: heartbeat-alert-publish
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref AlertTopic
+
+  ReceiveHeartbeatFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt HeartbeatLambdaRole.Arn
+      Timeout: 10
+      Environment:
+        Variables:
+          HEARTBEAT_TABLE: !Ref HeartbeatTable
+          HEARTBEAT_TOKEN: !Ref HeartbeatToken
+      Code:
+        ZipFile: |
+          import json
+          import os
+          import time
+          import boto3
+
+          dynamodb = boto3.resource("dynamodb")
+          table = dynamodb.Table(os.environ["HEARTBEAT_TABLE"])
+          expected_token = os.environ["HEARTBEAT_TOKEN"]
+
+          def response(status_code, body):
+              return {
+                  "statusCode": status_code,
+                  "headers": {"content-type": "application/json"},
+                  "body": json.dumps(body),
+              }
+
+          def handler(event, context):
+              headers = event.get("headers") or {}
+              auth_header = headers.get("authorization") or headers.get("Authorization") or ""
+              if auth_header != f"Bearer {expected_token}":
+                  return response(401, {"ok": False, "error": "unauthorized"})
+
+              try:
+                  payload = json.loads(event.get("body") or "{}")
+              except json.JSONDecodeError:
+                  return response(400, {"ok": False, "error": "invalid JSON"})
+
+              site_id = payload.get("site_id") or payload.get("site") or "home"
+              now = int(time.time())
+              classification = payload.get("classification", "UNKNOWN")
+
+              table.update_item(
+                  Key={"site_id": site_id},
+                  UpdateExpression=(
+                      "SET last_seen_epoch = :now, last_payload = :payload, "
+                      "classification = :classification"
+                  ),
+                  ExpressionAttributeValues={
+                      ":now": now,
+                      ":payload": json.dumps(payload, sort_keys=True),
+                      ":classification": classification,
+                  },
+              )
+
+              return response(
+                  200,
+                  {
+                      "ok": True,
+                      "site_id": site_id,
+                      "last_seen_epoch": now,
+                      "classification": classification,
+                  },
+              )
+
+  CheckStaleHeartbeatFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt HeartbeatLambdaRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          HEARTBEAT_TABLE: !Ref HeartbeatTable
+          ALERT_TOPIC_ARN: !Ref AlertTopic
+          STALE_AFTER_SECONDS: !Ref StaleAfterSeconds
+          SITE_ID: !Ref SiteId
+      Code:
+        ZipFile: |
+          import os
+          import time
+          import boto3
+
+          dynamodb = boto3.resource("dynamodb")
+          sns = boto3.client("sns")
+          table = dynamodb.Table(os.environ["HEARTBEAT_TABLE"])
+          topic_arn = os.environ["ALERT_TOPIC_ARN"]
+          stale_after = int(os.environ["STALE_AFTER_SECONDS"])
+          site_id = os.environ["SITE_ID"]
+
+          def publish(subject, message):
+              sns.publish(TopicArn=topic_arn, Subject=subject[:100], Message=message)
+
+          def handler(event, context):
+              now = int(time.time())
+              item = table.get_item(Key={"site_id": site_id}).get("Item")
+
+              if not item:
+                  publish(
+                      "Home monitor heartbeat missing",
+                      f"No heartbeat has ever been received for site '{site_id}'.",
+                  )
+                  return {"ok": True, "state": "NO_HEARTBEAT"}
+
+              last_seen = int(item.get("last_seen_epoch", 0))
+              age_seconds = now - last_seen
+              alert_state = item.get("alert_state", "OK")
+              classification = item.get("classification", "UNKNOWN")
+
+              if age_seconds >= stale_after and alert_state != "FIRING":
+                  publish(
+                      "Home monitor heartbeat stale",
+                      (
+                          f"Heartbeat missing for site '{site_id}'.\n"
+                          f"Last seen: {age_seconds} seconds ago.\n"
+                          f"Last local classification: {classification}.\n\n"
+                          "This is loss-of-contact detection, not final root cause. "
+                          "Possible causes include ACT outage, router outage, Pi power loss, "
+                          "or monitor failure."
+                      ),
+                  )
+                  table.update_item(
+                      Key={"site_id": site_id},
+                      UpdateExpression="SET alert_state = :state, alert_started_epoch = :now",
+                      ExpressionAttributeValues={":state": "FIRING", ":now": now},
+                  )
+                  return {"ok": True, "state": "FIRING", "age_seconds": age_seconds}
+
+              if age_seconds < stale_after and alert_state == "FIRING":
+                  publish(
+                      "Home monitor heartbeat recovered",
+                      (
+                          f"Heartbeat recovered for site '{site_id}'.\n"
+                          f"Current heartbeat age: {age_seconds} seconds.\n"
+                          f"Latest local classification: {classification}."
+                      ),
+                  )
+                  table.update_item(
+                      Key={"site_id": site_id},
+                      UpdateExpression="SET alert_state = :state, recovered_epoch = :now",
+                      ExpressionAttributeValues={":state": "OK", ":now": now},
+                  )
+                  return {"ok": True, "state": "RECOVERED", "age_seconds": age_seconds}
+
+              return {"ok": True, "state": alert_state, "age_seconds": age_seconds}
+
+  HeartbeatHttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: home-network-sre-monitor-heartbeat
+      ProtocolType: HTTP
+
+  HeartbeatIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HeartbeatHttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ReceiveHeartbeatFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  HeartbeatRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HeartbeatHttpApi
+      RouteKey: POST /heartbeat
+      Target: !Sub integrations/${HeartbeatIntegration}
+
+  HeartbeatStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HeartbeatHttpApi
+      StageName: prod
+      AutoDeploy: true
+
+  ReceiveHeartbeatPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ReceiveHeartbeatFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HeartbeatHttpApi}/*/*/heartbeat
+
+  StaleHeartbeatSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Check for stale home monitor heartbeat every minute.
+      ScheduleExpression: rate(1 minute)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt CheckStaleHeartbeatFunction.Arn
+          Id: CheckStaleHeartbeatFunction
+
+  CheckStaleHeartbeatPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref CheckStaleHeartbeatFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt StaleHeartbeatSchedule.Arn
+
+Outputs:
+  HeartbeatUrl:
+    Description: Raspberry Pi should POST heartbeat payloads to this URL.
+    Value: !Sub https://${HeartbeatHttpApi}.execute-api.${AWS::Region}.amazonaws.com/prod/heartbeat
+  SnsTopicArn:
+    Description: SNS topic used for email alerts.
+    Value: !Ref AlertTopic
+  HeartbeatTableName:
+    Description: DynamoDB table storing latest heartbeat state.
+    Value: !Ref HeartbeatTable
+

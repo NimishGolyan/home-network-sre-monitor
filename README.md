@@ -61,6 +61,9 @@ Milestone 3 adds:
 - JSON output for future automation.
 - Exit code `0` for `OK` and `1` for degraded/failure states.
 
+Future cloud heartbeat alerting is documented in `docs/cloud-heartbeat-alerting.md`.
+The design uses AWS to detect when the home monitor stops checking in, while keeping local outage classification as the source of root-cause evidence.
+
 ## Outage Classifier
 
 Run on the Raspberry Pi:
